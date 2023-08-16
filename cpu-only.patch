@@ -1,0 +1,182 @@
+diff --git a/video_chatgpt/demo/chat.py b/video_chatgpt/demo/chat.py
+index d0a7719..ccd93ae 100644
+--- a/video_chatgpt/demo/chat.py
++++ b/video_chatgpt/demo/chat.py
+@@ -59,7 +59,7 @@ class Chat:
+             temporal_tokens = torch.cat((temporal_tokens, torch.zeros(padding_size, c, device=features.device)), dim=0)
+ 
+         spatial_tokens = torch.mean(features, dim=0)
+-        concat_tokens = torch.cat([temporal_tokens, spatial_tokens], dim=0).half()
++        concat_tokens = torch.cat([temporal_tokens, spatial_tokens], dim=0)
+ 
+         return concat_tokens
+ 
+@@ -83,7 +83,7 @@ class Chat:
+ 
+         inputs = self.tokenizer([prompt])
+ 
+-        input_ids = torch.as_tensor(inputs.input_ids).cuda()
++        input_ids = torch.as_tensor(inputs.input_ids).cpu()
+ 
+         stop_str = state.sep if state.sep_style != SeparatorStyle.TWO else state.sep2
+         keywords = [stop_str]
+@@ -104,7 +104,7 @@ class Chat:
+ 
+         image_tensor = img_list[0]
+         # Generate video spatio-temporal features
+-        image_tensor = image_tensor.half().cuda()
++        image_tensor = image_tensor.float()
+         with torch.no_grad():
+             image_forward_outs = self.vision_tower(image_tensor, output_hidden_states=True)
+             select_hidden_state_layer = -2  # Same as used in LLaVA
+@@ -132,7 +132,10 @@ class Chat:
+         outputs = outputs.strip()
+         output = post_process_code(outputs)
+         for character in output:
+-            state.messages[-1][-1] += character
++            if state.messages[-1][-1] is not None:
++                state.messages[-1][-1] += character
++            else:
++                state.messages[-1][-1] = character
+             time.sleep(0.01)
+             yield (state, state.to_gradio_chatbot(), img_list, first_run) + (enable_btn,) * 5
+         # state.messages[-1][-1] = state.messages[-1][-1][:-1]
+diff --git a/video_chatgpt/demo/template.py b/video_chatgpt/demo/template.py
+index 6c5a552..dda8f07 100644
+--- a/video_chatgpt/demo/template.py
++++ b/video_chatgpt/demo/template.py
+@@ -30,28 +30,24 @@ disclaimer = """
+             <hr> 
+             <h3 align="center">Designed and Developed under MBZUAI ORYX</h3>
+             """
+-
++from typing import Union, Iterable
+ 
+ class Seafoam(Base):
+     def __init__(
+             self,
+             *,
+-            primary_hue: colors.Color | str = colors.orange,
+-            secondary_hue: colors.Color | str = colors.blue,
+-            neutral_hue: colors.Color | str = colors.gray,
+-            spacing_size: sizes.Size | str = sizes.spacing_md,
+-            radius_size: sizes.Size | str = sizes.radius_md,
+-            text_size: sizes.Size | str = sizes.text_md,
+-            font: fonts.Font
+-                  | str
+-                  | Iterable[fonts.Font | str] = (
++            primary_hue: Union[colors.Color, str] = colors.orange,
++            secondary_hue: Union[colors.Color, str] = colors.blue,
++            neutral_hue: Union[colors.Color, str] = colors.gray,
++            spacing_size: Union[sizes.Size, str] = sizes.spacing_md,
++            radius_size: Union[sizes.Size, str] = sizes.radius_md,
++            text_size: Union[sizes.Size, str] = sizes.text_md,
++            font: Union[fonts.Font, str, Iterable[Union[fonts.Font, str]]] = (
+                     fonts.GoogleFont("Source Serif Pro"),
+                     "ui-sans-serif",
+                     "sans-serif",
+             ),
+-            font_mono: fonts.Font
+-                       | str
+-                       | Iterable[fonts.Font | str] = (
++            font_mono: Union[fonts.Font, str, Iterable[Union[fonts.Font, str]]] = (
+                     fonts.GoogleFont("IBM Plex Mono"),
+                     "ui-monospace",
+                     "monospace",
+diff --git a/video_chatgpt/eval/model_utils.py b/video_chatgpt/eval/model_utils.py
+index b634952..b641ab0 100644
+--- a/video_chatgpt/eval/model_utils.py
++++ b/video_chatgpt/eval/model_utils.py
+@@ -101,11 +101,14 @@ def initialize_model(model_name, projection_path=None):
+     tokenizer = AutoTokenizer.from_pretrained(model_name)
+ 
+     # Load model
+-    model = VideoChatGPTLlamaForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=True, torch_dtype=torch.float16,
++    model = VideoChatGPTLlamaForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=True, 
++                                                        torch_dtype=torch.float,
+                                                          use_cache=True)
+ 
+     # Load image processor
+-    image_processor = CLIPImageProcessor.from_pretrained(model.config.mm_vision_tower, torch_dtype=torch.float16)
++    image_processor = CLIPImageProcessor.from_pretrained(model.config.mm_vision_tower, 
++    torch_dtype=torch.float
++    )
+ 
+     # Set to use start and end tokens for video
+     mm_use_vid_start_end = True
+@@ -128,13 +131,14 @@ def initialize_model(model_name, projection_path=None):
+ 
+     # Set model to evaluation mode and move to GPU
+     model = model.eval()
+-    model = model.cuda()
++    model = model.cpu()
+ 
+     vision_tower_name = "openai/clip-vit-large-patch14"
+ 
+     # Load vision tower and move to GPU
+-    vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name, torch_dtype=torch.float16,
+-                                                   low_cpu_mem_usage=True).cuda()
++    vision_tower = CLIPVisionModel.from_pretrained(vision_tower_name, 
++                                                   torch_dtype=torch.float,
++                                                   low_cpu_mem_usage=True).cpu()
+     vision_tower = vision_tower.eval()
+ 
+     # Configure vision model
+diff --git a/video_chatgpt/inference.py b/video_chatgpt/inference.py
+index 73ce333..b14cba1 100644
+--- a/video_chatgpt/inference.py
++++ b/video_chatgpt/inference.py
+@@ -38,7 +38,7 @@ def get_spatio_temporal_features_torch(features):
+     spatial_tokens = torch.mean(features, dim=0)
+ 
+     # Concatenate temporal and spatial tokens and cast to half precision
+-    concat_tokens = torch.cat([temporal_tokens, spatial_tokens], dim=0).half()
++    concat_tokens = torch.cat([temporal_tokens, spatial_tokens], dim=0)
+ 
+     return concat_tokens
+ 
+@@ -81,7 +81,7 @@ def video_chatgpt_infer(video_frames, question, conv_mode, model, vision_tower,
+     image_tensor = image_processor.preprocess(video_frames, return_tensors='pt')['pixel_values']
+ 
+     # Move image tensor to GPU and reduce precision to half
+-    image_tensor = image_tensor.half().cuda()
++    image_tensor = image_tensor.cpu()
+ 
+     # Generate video spatio-temporal features
+     with torch.no_grad():
+diff --git a/video_chatgpt/model/consolidate.py b/video_chatgpt/model/consolidate.py
+index 9352723..0cd1d52 100644
+--- a/video_chatgpt/model/consolidate.py
++++ b/video_chatgpt/model/consolidate.py
+@@ -11,7 +11,9 @@ from video_chatgpt.model import *
+ 
+ def consolidate_ckpt(src_path, dst_path):
+     print("Loading model")
+-    src_model = AutoModelForCausalLM.from_pretrained(src_path, torch_dtype=torch.float16, low_cpu_mem_usage=True)
++    src_model = AutoModelForCausalLM.from_pretrained(src_path, 
++    torch_dtype=torch.float,
++    low_cpu_mem_usage=True)
+     src_tokenizer = AutoTokenizer.from_pretrained(src_path)
+     src_model.save_pretrained(dst_path)
+     src_tokenizer.save_pretrained(dst_path)
+diff --git a/video_chatgpt/model/make_delta.py b/video_chatgpt/model/make_delta.py
+index 04ceb88..dd55fae 100644
+--- a/video_chatgpt/model/make_delta.py
++++ b/video_chatgpt/model/make_delta.py
+@@ -12,10 +12,14 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
+ def make_delta(base_model_path, target_model_path, delta_path, hub_repo_id):
+     print("Loading base model")
+     base = AutoModelForCausalLM.from_pretrained(
+-        base_model_path, torch_dtype=torch.float16, low_cpu_mem_usage=True)
++        base_model_path, 
++        torch_dtype=torch.float,
++         low_cpu_mem_usage=True)
+ 
+     print("Loading target model")
+-    target = AutoModelForCausalLM.from_pretrained(target_model_path, torch_dtype=torch.float16, low_cpu_mem_usage=True)
++    target = AutoModelForCausalLM.from_pretrained(target_model_path, 
++    torch_dtype=torch.float, 
++    low_cpu_mem_usage=True)
+ 
+     print("Calculating delta")
+     for name, param in tqdm(target.state_dict().items(), desc="Calculating delta"):
