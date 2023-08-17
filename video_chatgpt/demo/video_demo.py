@@ -102,7 +102,6 @@ def clear_history(img_list):
 
 
 def add_text(state, text, image, first_run):
-    logger.info(f"add_text. ip:. len: {len(text)}")
     if len(text) <= 0 and image is None:
         state.skip_next = True
         return (state, state.to_gradio_chatbot(), "", None) + (no_change_btn,) * 5
@@ -123,6 +122,7 @@ def add_text(state, text, image, first_run):
     state.append_message(state.roles[0], text)
     state.append_message(state.roles[1], None)
     state.skip_next = False
+    logger.info(f"{first_run}, len: {len(text)}, state: {state.to_gradio_chatbot()}")
     return (state, state.to_gradio_chatbot(), "") + (disable_btn,) * 5
 
 
@@ -160,21 +160,30 @@ def build_demo(embed_mode):
 
                 # Add a text note beneath the button
                 gr.Markdown(
-                    "NOTE: Please make sure you **<span style='color:red'>press the 'Upload Video' button</span>**"
-                    " and wait for it to display 'Start Chatting "
-                    "before submitting question to Video-ChatGPT.",
-                    style="color:gray")
+                    "<span style='color:red'>Easy Start: </span>"
+                    "Click one of the Example Videos below, wait a few seconds for it to display a video preview on the box above to make sure it is loaded correctly and then click 'Upload Video' button above. <br>Then you can start chatting when the button changes to 'Start Chatting'."
+                    "<br>You must <span onclick='window.location.reload();' style='color:#2196F3;cursor:pointer'> Refresh Page </span> to try another example video."
+                    " ", style="color:gray")
                 cur_dir = os.path.dirname(os.path.abspath(__file__))
+                # gr.Examples(examples=[
+                #     [f"{cur_dir}/demo_sample_videos/sample_2.mp4", "Why is this video strange?"],
+                #     [f"{cur_dir}/demo_sample_videos/sample_6.mp4",
+                #      "Can you write a short poem inspired from the video."],
+                #     [f"{cur_dir}/demo_sample_videos/sample_8.mp4",
+                #      "Where is this video taken? What place/landmark is shown in the video?"],
+                #     [f"{cur_dir}/demo_sample_videos/sample_15.mp4",
+                #      "What is the main challenge faced by the people on the boat."],
+                # ], inputs=[imagebox, textbox])
                 gr.Examples(examples=[
-                    [f"{cur_dir}/demo_sample_videos/sample_2.mp4", "Why is this video strange?"],
-                    [f"{cur_dir}/demo_sample_videos/sample_6.mp4",
-                     "Can you write a short poem inspired from the video."],
-                    [f"{cur_dir}/demo_sample_videos/sample_8.mp4",
-                     "Where is this video taken? What place/landmark is shown in the video?"],
-                    [f"{cur_dir}/demo_sample_videos/sample_15.mp4",
-                     "What is the main challenge faced by the people on the boat."],
-                ], inputs=[imagebox, textbox])
+                    [f"{cur_dir}/demo_sample_soccer/ball_out_of_play.mp4", "Why is this video interesting?"],
+                    [f"{cur_dir}/demo_sample_soccer/foul.mp4", "Can you write a short poem inspired from the video."],
+                    [f"{cur_dir}/demo_sample_soccer/goal.mp4", "Where is this video taken? What event is shown in the video?"],
+                    [f"{cur_dir}/demo_sample_soccer/injury.mp4","What is the main challenge faced by the people."],
+                    [f"{cur_dir}/demo_sample_soccer/throw_in.mp4","What is happening here?"],
+                    [f"{cur_dir}/demo_sample_soccer/throw_in.mp4","Generate a post in Twitter style describing the vibes of the game."],
 
+
+                ], inputs=[imagebox, textbox])
                 with gr.Accordion("Parameters", open=False, visible=False) as parameter_row:
                     temperature = gr.Slider(minimum=0.0, maximum=1.0, value=0.2, step=0.1, interactive=True,
                                             label="Temperature", )
@@ -268,6 +277,7 @@ if __name__ == "__main__":
     replace_token = DEFAULT_VID_START_TOKEN + replace_token + DEFAULT_VID_END_TOKEN
 
     # Create chat for the demo
+    print("args", args, tokenizer, image_processor, vision_tower, model, replace_token)
     chat = Chat(args.model_name, args.conv_mode, tokenizer, image_processor, vision_tower, model, replace_token)
     print('Initialization Finished')
 

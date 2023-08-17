@@ -26,32 +26,28 @@ description = "<h3>This is the demo of Video-ChatGPT from Oryx.</h3> Upload your
 
 disclaimer = """ 
             <h2>Disclaimer</h2>
-            <h3>The service is a research preview from the MBZUAI ORYX Project and is intended for non-commercial use only.</h3> 
+            <h3>Inference from HOST, SimulaMet</h3> 
             <hr> 
             <h3 align="center">Designed and Developed under MBZUAI ORYX</h3>
             """
-
+from typing import Union, Iterable
 
 class Seafoam(Base):
     def __init__(
             self,
             *,
-            primary_hue: colors.Color | str = colors.orange,
-            secondary_hue: colors.Color | str = colors.blue,
-            neutral_hue: colors.Color | str = colors.gray,
-            spacing_size: sizes.Size | str = sizes.spacing_md,
-            radius_size: sizes.Size | str = sizes.radius_md,
-            text_size: sizes.Size | str = sizes.text_md,
-            font: fonts.Font
-                  | str
-                  | Iterable[fonts.Font | str] = (
+            primary_hue: Union[colors.Color, str] = colors.orange,
+            secondary_hue: Union[colors.Color, str] = colors.blue,
+            neutral_hue: Union[colors.Color, str] = colors.gray,
+            spacing_size: Union[sizes.Size, str] = sizes.spacing_md,
+            radius_size: Union[sizes.Size, str] = sizes.radius_md,
+            text_size: Union[sizes.Size, str] = sizes.text_md,
+            font: Union[fonts.Font, str, Iterable[Union[fonts.Font, str]]] = (
                     fonts.GoogleFont("Source Serif Pro"),
                     "ui-sans-serif",
                     "sans-serif",
             ),
-            font_mono: fonts.Font
-                       | str
-                       | Iterable[fonts.Font | str] = (
+            font_mono: Union[fonts.Font, str, Iterable[Union[fonts.Font, str]]] = (
                     fonts.GoogleFont("IBM Plex Mono"),
                     "ui-monospace",
                     "monospace",
