@@ -25,20 +25,20 @@ map_event_type = {
     "Ball out of play": "out",
     "Goal": "goal",
     "Shots": "shot",
-    "Throw-in": "throw-in",
+    "Throw-in": "throw",
     "Foul": "foul",
 }
 events_list = "', '".join(set(map_event_type.keys()))
 events_list = f"'{events_list}'"
 
-events_list_formatted = "', '".join(set(map_event_type.values()))
-events_list_formatted = f"'{events_list_formatted}'"
+events_list_formatted = ", ".join(set(map_event_type.values()))
+events_list_formatted = f"{events_list_formatted}"
 
 
 questions = [
-"Deeply analyze given soccer video clip which shows a particular game event."
+"Deeply analyze given soccer video clip which shows a particular game event type. "
 # "Which one of the events from <"+events_list_formatted+"> best matches the event shown in the given video?"
-"No pre-amble and output answer in JSON with single key 'pred_evnt' with one of values from <"+events_list_formatted+"> that best matches event shown in given video. JSON output format: { ''pred_evnt'': ''...'' } ",   
+"No pre-amble and output only in JSON with single key 'pred_evnt' with one of the events from <"+events_list_formatted+"> that best matches the event shown in given video. JSON output format: { ''pred_evnt'': ''...'' } ",   
 ]
 
 print(questions[0])
