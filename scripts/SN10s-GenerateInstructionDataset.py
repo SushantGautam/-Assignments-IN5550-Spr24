@@ -73,7 +73,7 @@ def qa_generator(event, n_pos=3, n_neg=3):
         answer_template = random.choice(positive_answer_templates)
         question = question_template.format(event=event)
         answer = answer_template.format(event=event)
-        qa_set.append((preamble+ question, answer))
+        qa_set.append([{ "from": "human","value": question+" \n<video>"}, {"from": "gpt","value": answer}])
     
     # Generate negative questions and answers
     for _ in range(n_neg):
