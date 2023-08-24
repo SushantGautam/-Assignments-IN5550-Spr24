@@ -17,6 +17,7 @@ with open('SN10s-min5c_collapsed_ln_map.json', 'w') as json_file:
 
 '''
 import random
+random.seed(42)
 
 all_events = ['Goal', 'Shots', 'Foul', 'Ball out of play', 'Throw-in']
 
@@ -110,6 +111,7 @@ for idx, filename in data.items():
                 "conversations": conv
             }
         )
+random.shuffle(all_qa)
 
 print(len(all_qa))
 print(all_qa[:20])
