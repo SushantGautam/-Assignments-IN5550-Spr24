@@ -1,3 +1,6 @@
 venv
 *.pyc
 *.mp4
+*.bin
+LLaVA-7B-Lightening-v1-1/
+*.pkl
