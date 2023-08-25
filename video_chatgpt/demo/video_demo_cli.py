@@ -28,6 +28,15 @@ map_event_type = {
     "Throw-in": "throw",
     "Foul": "foul",
 }
+
+# map_event_type = {
+#     "Goal": "Goal",
+#     "Shots": "Shots",
+#     "Foul": "Foul",
+#     "Ball out of play": "Ball out of play",
+#     "Throw-in": "Throw-in",
+# }
+
 events_list = "', '".join(set(map_event_type.keys()))
 events_list = f"'{events_list}'"
 
@@ -67,8 +76,8 @@ def getKeyFromState(answer, key, value):
             return (Status.KEY_NOT_FOUND, parsed_json, {"expected_key": key, "true_answer": value})
     except:
         return (Status.FAIL_PARSING, last_response, {"expected_key": key, "true_answer": value})
-
-model, vision_tower, tokenizer, image_processor, video_token_len = initialize_model("./LLaVA-7B-Lightening-v1-1/", "./video_chatgpt-7B.bin")
+# model, vision_tower, tokenizer, image_processor, video_token_len = initialize_model("./LLaVA-7B-Lightening-v1-1/", "./video_chatgpt-7B.bin")
+model, vision_tower, tokenizer, image_processor, video_token_len = initialize_model("./LLaVA-7B-Lightening-v1-1/",  "/home/sushant/D1/SoccerNetExperiments/Soccer-Video-ChatGPT/SoccerVideo-ChatGPT_7B-1.1_Checkpoints/mm_projector/checkpoint-48000.bin")
 
 import glob
 import random
