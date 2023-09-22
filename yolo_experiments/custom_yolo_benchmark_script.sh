@@ -1,0 +1,1 @@
+# yolo val model=yolov8m_best.pt data=/home/sushant/D1/DataSets/SoccerNet-tracking/2023_test_yolo_3c/data.yaml split=val 
