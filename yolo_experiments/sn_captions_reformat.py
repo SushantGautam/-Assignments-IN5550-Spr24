@@ -1,6 +1,6 @@
 import glob, json
 import difflib
-import re
+import re, os
 
 caption_root= "/home/sushant/D1/SoccerNetExperiments/Video-LLaMA-SoccerNet/SoccerNet-Caption"
 jsons = glob.glob(caption_root + "/**/*.json", recursive=True)
@@ -82,9 +82,9 @@ for file in jsons:
                     # print(_v)
                     #_v is either in teams_home or teams_away, return the one that is in the list
                     if _v in teams_home:
-                        home_away= "Home team"
+                        home_away= "Home-Team"
                     elif _v in teams_away:
-                        home_away= "Away team"
+                        home_away= "Away-Team"
                     else:
                         raise Exception("Team not found in teams list")
                     org_b = org_b.replace(k.replace(" ", ''), home_away)
@@ -98,8 +98,15 @@ for file in jsons:
                     org_b = org_b.replace(k.replace(" ", ''), "Coach")
                 elif k.startswith('[REFEREE'):
                     org_b = org_b.replace(k.replace(" ", ''), "Referee")
-            print( org_b)
-                    
+            annotation['all_identified'] = org_b
+            annotation['team_identified'] = re.sub(r'Jersey \d+', 'Player', org_b)
+            print( annotation)
+            # breakpoint()
+        file_ = file.replace("SoccerNetExperiments/Video-LLaMA-SoccerNet/SoccerNet-Caption", "MyDataSets/SN_Captions_Mod")
+        os.makedirs(os.path.dirname(file_), exist_ok=True)
+        with open(file_, 'w') as outfile:
+            json.dump(data, outfile, indent=4)
+
 
 
 
