@@ -57,4 +57,4 @@ for index, row in events_all.iterrows():
         breakpoint()
 
 # save to csv
-# events_all.to_csv('event_pairs_with_captions.csv', index=False)
+events_all.to_csv('event_pairs_with_captions.csv', )
