@@ -56,5 +56,6 @@ for index, row in events_all.iterrows():
     except:
         breakpoint()
 
-# save to csv
-events_all.to_csv('event_pairs_with_captions.csv', )
+
+# events_all without filter same id from events_all_
+events_all = events_all_.
