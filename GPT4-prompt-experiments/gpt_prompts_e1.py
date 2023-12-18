@@ -73,7 +73,7 @@ import json
 count = 0
 all_output = []
 
-E1_CapASR_10k = E1_CapASR_10k.iloc[:1000]
+E1_CapASR_10k = E1_CapASR_10k.iloc[:5000]
 
 for index, row in E1_CapASR_10k.iterrows():
     if os.path.isfile(f"e1_captions_tmp/{index}.json"):
