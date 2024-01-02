@@ -2,6 +2,7 @@ import openai
 import tiktoken
 import ast
 from datetime import datetime
+import json
 
 # Define your OpenAI API key
 api_key = json.load(open('tmp/openai.json'))["api-key"]
