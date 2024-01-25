@@ -6,7 +6,7 @@ import os
 import time
 import warnings
 from datetime import datetime
-
+import pandas as pd
 import openai
 from tqdm import tqdm
 
@@ -48,7 +48,7 @@ def parse_args():
     )
     parser.add_argument("--input_type", required=True, help="e1 or e2")
     parser.add_argument(
-        "--num_tasks", required=False, type=int, help="Number of splits.", default=10
+        "--num_tasks", required=False, type=int, help="Number of splits.", default=1
     )
     parser.add_argument(
         "--creative",
@@ -74,14 +74,35 @@ def parse_args():
 
     return parser.parse_args()
 
+import requests_cache
+e1_data = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vQMaaNO_0JU-A2gdSyJpF-WEjJGqWqZdIIp9g9gHGpTdJ3G8l6BvV1PvtmrB3nUTHxnDC_zbiAp3sJx/pub?gid=353977511&single=true&output=csv", index_col=0,)
+e2_data = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vQMaaNO_0JU-A2gdSyJpF-WEjJGqWqZdIIp9g9gHGpTdJ3G8l6BvV1PvtmrB3nUTHxnDC_zbiAp3sJx/pub?gid=957600063&single=true&output=csv", index_col=0)
+
+
 
 def annotate(gt_file, caption_files, output_dir, args):
     """
     Generates question and answer pairs based on video captions using OpenAI GPT-3.
     """
+
     for file in tqdm(caption_files):
         key = file.split(".")[0].split("_")[0]
         caption = gt_file[key]
+
+        # breakpoint()
+        # find event type shown in  the video
+        if str(args.input_type) == "e1":
+            event_name = e1_data.loc[int(file.split('_')[0]), "label"]
+            event_info ="The only visible event is: "+ event_name + ". "
+        elif str(args.input_type) == "e2":
+            events_name = e2_data.loc[int(file.split('_')[0]), "Pair-label"].split("->")
+            event_info ="Only two events are shown: "+ events_name[0] + " and then " + events_name[1] + ". "
+        else:
+            print("Error: Invalid input type. Exiting...", key)
+            exit()
+        
+
+        print(caption, "\n\n")
 
         # tmp #########
 
@@ -105,31 +126,32 @@ def annotate(gt_file, caption_files, output_dir, args):
                     "Your task is to play the role of a human who asks three questions related to summarizing the video and then play the role of an AI assistant that provides paraphrased answers based on the video content and the provided caption."
                     "------"
                     "##TASK:"
-                    "Users will provide a caption of a video, and you will generate a set of three conversation-like questions related to summarizing the video. "
-                    "The questions and answers can be very similar, but they should all focus on summarizing the video content. "
-                    "The answers should be paraphrased versions of the provided caption. Don't talk about viewers and fans"
-                    "You have information about the video based on the provided caption and have summarized the events in it. "
-                    "Generate THREE different questions asking to summarize the video and provide detailed answers to each based on the caption. "
+                    "Users will provide a caption of a video, and you will generate a set of three conversation-like questions related to summarizing the video. "+ event_info+ 
+                    "The caption can mention major events not shown in the clip. The questions and answers can be very similar, but they should all focus on summarizing the key event event shown. "
+                    "Each answers should be distinct paraphrased versions of the provided caption about the key visible events. Don't talk about viewers and fans."
+                    "You have information about the video based on the provided caption and have to summarize the visible game events in it. "
+                    "Generate THREE different diverse-type questions asking to summarize the video and provide detailed answers to each based on the caption. "
                     "------"
                     "##INSTRUCTIONS:"
                     "- The questions must be like a human conversation and focused on summarizing the video. "
                     "- The answers must be paraphrased versions of the provided caption, and they should be detailed and descriptive. "
+                    "- Refrain from mentioning the actual names of the players and teams in the answer."
                     "------"
                     "##SAMPLE QUESTIONS:"
                     "- Can you provide a summary of the game video?"
                     "- What are the main events shown in the video?"
+                    "- What's the essence of the game's dynamics?"
                     "- Could you briefly describe the video content?",
                 },
                 {
                     "role": "user",
-                    "content": f"The video caption is: {caption}\n"
-                    "Please generate the response in the form of a Python JSON list of dictionary string with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
-                    "For example, your response should look like this: [{'Q': 'Your first question here...', 'A': 'Your first answer here...'}, {'Q': 'Your second question here...', 'A': 'Your second answer here...'}, {'Q': 'Your third question here...', 'A': 'Your third answer here...'}]. "
-                    "Emphasize that the questions and answers can be very similar, but they should all focus on summarizing the video content.",
+                    "content": f"The video caption is: {caption}."
+                    "Please generate the response in the form of a Python JSON, where JSON strings starting with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
+                    "Emphasize that the questions and answers can be very similar, but they should all focus on summarizing the video content."
+                    "The response should look EXACTLY like this : {'Q1': 'Your first question here...', 'A1': 'Your first answer here...', 'Q2': 'Your second question here...', 'A2': 'Your second answer here...', 'Q3': 'Your third question here...', 'A3': 'Your third answer here...'}. ",
+
                 },
             ]
-            print(message)
-            breakpoint()
             completion_0 = openai.ChatCompletion.create(
                 messages=message,
                 model="gpt-3.5-turbo-1106",
@@ -139,8 +161,7 @@ def annotate(gt_file, caption_files, output_dir, args):
             # Convert response to a list of dictionary.
             response_message = completion_0["choices"][0]["message"]["content"]
             # response_message ='{"s": "test"}' #REM
-            print(response_message)
-            response_dict = ast.literal_eval(response_message)
+
         elif file.split(".")[0].split("_")[1] == "caption":
             # Generate QA pairs with OpenAI GPT-3: Caption Based
             # Answers specifically restricted to information in the caption
@@ -174,7 +195,7 @@ def annotate(gt_file, caption_files, output_dir, args):
                 {
                     "role": "user",
                     "content": f"The video caption is: {caption}. "
-                    "Please generate the response in the form of a Python JSON list of dictionary string with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
+                    "Please generate the response in the form of a Python JSON list of dictionaries with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
                     "For example, your response should look like this: [{'Q': 'Your first question here...', 'A': 'Your first answer here...'}, {'Q': 'Your second question here...', 'A': 'Your second answer here...'}, {'Q': 'Your third question here...', 'A': 'Your third answer here...'}]. "
                     "Emphasize that the ALL THREE questions must be designed to extract information DIRECTLY from the given information, so that it or parts of it can serve as the answers, and provide detailed and descriptive answers.",
                 },
@@ -189,7 +210,7 @@ def annotate(gt_file, caption_files, output_dir, args):
             # Extract Caption Based QA pairs
             # Convert response to a list of dictionary.
             response_message = completion_1["choices"][0]["message"]["content"]
-            response_dict = ast.literal_eval(response_message)
+
         elif file.split(".")[0].split("_")[1] == "creative":
             # Generate QA pairs with OpenAI GPT-3: Creative Based
             # TODO: Limit to samples with lengthy GT captions
@@ -237,7 +258,16 @@ def annotate(gt_file, caption_files, output_dir, args):
             # Extract Creative Based QA pairs
             # Convert response to a list of dictionary.
             response_message = completion_2["choices"][0]["message"]["content"]
-            response_dict = ast.literal_eval(response_message)
+        
+        try:
+            response_dict = ast.literal_eval(response_message.replace("\n", ""))
+            print("\nresponse_dict: ",json.dumps(response_dict, indent=4))
+            # breakpoint()
+        except:
+            print("Error: Invalid response format. Manual...\n\n")
+            print("response_dict= ", response_message)
+            breakpoint()
+        print("\nresponse_message: ", response_message)
         json_file_path = os.path.join(output_dir, file.split(".")[0] + ".json")
         with open(json_file_path, "w") as f:
             print(
@@ -245,6 +275,7 @@ def annotate(gt_file, caption_files, output_dir, args):
             )
             json.dump(response_dict, f)
         save_analytics(caption, message, response_message, response_dict)
+        print(key)
     print(f"Completed, Annotations saved in {output_dir}")
 
 
