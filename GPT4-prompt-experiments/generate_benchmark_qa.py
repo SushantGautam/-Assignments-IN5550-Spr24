@@ -90,7 +90,7 @@ def annotate(caption_files, output_dir, args):
         event1, event2 = row["Pair-label"].split("->")
         event_info ="Only two events are shown: "+ event1 + " and then " + event2 + ". "
         event_1_team, event_2_team =  row.team, row.n_team
-        match = re.search(r'(\d{4}-\d{2}-\d{2} - \d{2}-\d{2}) ([^0-9]+) (\d) - (\d) ([^/]+)/\d+', row.game)
+        match = re.search(r'(\d{4}-\d{2}-\d{2} - \d{2}-\d{2}) (.+?) (\d) - (\d) (.+)/\d+', row.game)
         home_team, away_team = match.group(2).strip(), match.group(5).strip()
         home_color, away_color = row.home_color, row.away_color
         colour = {'home': home_color, 'away': away_color}
@@ -153,38 +153,35 @@ def annotate(caption_files, output_dir, args):
             message = [
                 {
                     "role": "system",
-                    "content": "You play two roles: a human asking questions related to a video and an intelligent chatbot designed to help people find information from a given video. "
-                    "Your task is video summarization, which will be used by users to understand different events in long videos by asking different questions based on the video. "
-                    "The video summarization will be used for various applications such as surveillance, generate previews or summaries of video content for video search engines, "
-                    "create highlights or summaries of sporting events, TV shows, and movies. "
-                    "Your task is to first play the role of a human who asks questions related to a video and then play the role of an AI assistant that provides information based on the video content."
+                    "content": 
+                    # "You play two roles: a human asking questions related to a video and an intelligent chatbot designed to help people find information from a given video. "
+                    # "Your task is video summarization, which will be used by users to understand different events in long videos by asking different questions based on the video. "
+                    # "The video summarization will be used for various applications such as surveillance, generate previews or summaries of video content for video search engines, "
+                    # "create highlights or summaries of sporting events, TV shows, and movies. "
+                    # "Your task is to first play the role of a human who asks questions related to a video and then play the role of an AI assistant that provides information based on the video content."
                     "------"
                     "##TASK:"
-                    "Users will provide some information about a video, and you will generate a set of conversation-like questions and answers related to the video. "
-                    "The questions should be designed to extract information directly from the given information, so that the provided information or parts of it can serve as the answers. "
-                    "Generate THREE different descriptive and conversational style questions and detailed answers based on the given information. "
-                    "------"
-                    "##INSTRUCTIONS:"
-                    "- The questions must be like a human conversation and based on the events in the video. "
-                    "- The questions should be designed to extract information DIRECTLY from the given information, so that it or parts of it can serve as the answers. "
-                    "- The answers must be detailed and descriptive, and they should directly reference the information provided. "
-                    "- The questions can be related to the appearance, motion, trajectory, and reasoning. "
-                    "------"
-                    "##SAMPLE QUESTIONS:"
-                    "- What is the man doing in the video?"
-                    "- What are the girls doing in the video?"
-                    "- Describe the appearance of the motorbike"
-                    "- Is the person riding the bike wearing a helmet?"
-                    "- How does the person repair the car?",
-                },
-                {
-                    "role": "user",
-                    "content": f"The video caption is: {caption}. "
-                    "Please generate the response in the form of a Python JSON list of dictionaries with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
-                    "For example, your response should look like this: [{'Q': 'Your first question here...', 'A': 'Your first answer here...'}, {'Q': 'Your second question here...', 'A': 'Your second answer here...'}, {'Q': 'Your third question here...', 'A': 'Your third answer here...'}]. "
-                    "Emphasize that the ALL THREE questions must be designed to extract information DIRECTLY from the given information, so that it or parts of it can serve as the answers, and provide detailed and descriptive answers.",
-                },
-            ]
+                            "Users will provide information about a short soccer video clip and two visible events, and you will and you will create a conversational question and answer pair specifically focusing on the temporal sequence of events in the video. "
+                            "The question should be designed to extract temporal sequence information directly from the given information, so that the provided information or parts of it can serve as the answer."
+                            "We also have access to internal commentary which can enhance the temporal event understanding only if it contains information directly related to the visible events. Other information not directly related to visible events in the commentary should be ignored. "
+                            "Don't mention about commentary in question/answer as it is not shown on video."
+                            "Be serious about privary and anonymization. Don't use real player and team names, strictly anonymize them to prevent privacy."
+                            "Always use jersey colours (eg: player form .. color team,) to refer to team/player as the names are not visible on the video."
+                            "Generate ONE descriptive and conversational style question and detailed answer based on the given information, specifically related to the temporal understanding in the video."
+                            "##INSTRUCTIONS:"
+                            "- The question must be like a human conversation and directly related to the temporal sequence of events in the video. "
+                            "- The question should be designed to extract temporal sequence information DIRECTLY from the given information, so that it or parts of it can serve as the answer. "
+                            "- The answer must be detailed and descriptive, and should directly reference the information provided with respect to the temporal sequence of events in the video."
+                    },
+                    {
+                        "role": "user",
+                        "content":
+                            f"The user input is: {caption}. "
+                            f"Please generate the response in the form of a Python JSON dictionary string with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
+                            "For example, your response should look like this: {'Q': 'Your question here...', 'A': 'Your answer here...'}. "
+                            f"Emphasize that the answer should focus on temporal understanding from the video content without mentioning any player name and team names as well as about the internal commentary."
+                    }
+                ]
 
             completion_1 = openai.ChatCompletion.create(
                 messages=message,
@@ -250,6 +247,7 @@ def annotate(caption_files, output_dir, args):
             print("Error: Invalid response format. Manual...\n\n")
             print("response_dict= ", response_message)
             breakpoint()
+        
         print("\nresponse_message: ", response_message)
         json_file_path = os.path.join(output_dir, file.split(".")[0] + ".json")
         with open(json_file_path, "w") as f:
