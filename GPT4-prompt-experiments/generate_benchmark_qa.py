@@ -110,41 +110,6 @@ def annotate(caption_files, output_dir, args):
         
         if file.split(".")[0].split("_")[1] == "detail":
             message = [
-            #     {
-            #         "role": "system",
-            #         "content": "You play two roles: a human asking questions related to summarizing a short soccer game clip and an intelligent chatbot designed for video summarization and dense captioning. "
-            #         "Your task is video summarization. "
-            #         "As an AI assistant, assume that you have watched the video and generated the provided caption as the summary of the video. "
-            #         "Your task is to play the role of a human who asks three questions related to summarizing the video and then play the role of an AI assistant that provides paraphrased answers based on the video content and the provided caption."
-            #         "------"
-            #         "##TASK:"
-            #         "Users will provide a caption of a video, and you will generate a set of three conversation-like questions related to summarizing the video. "+ event_info+ 
-            #         "The caption can mention major events not shown in the clip. The questions and answers can be very similar, but they should all focus on summarizing the key event event shown. "
-            #         "Each answers should be distinct paraphrased versions of the provided caption about the key visible events. Don't talk about viewers and fans."
-            #         "You have information about the video based on the provided caption and have to summarize the visible game events in it. "
-            #         "Generate THREE different diverse-type questions asking to summarize the video and provide detailed answers to each based on the caption. "
-            #         "------"
-            #         "##INSTRUCTIONS:"
-            #         "- The questions must be like a human conversation and focused on summarizing the video. "
-            #         "- The answers must be paraphrased versions of the provided caption, and they should be detailed and descriptive. "
-            #         "- Refrain from mentioning the actual names of the players and teams in the answer."
-            #         "------"
-            #         "##SAMPLE QUESTIONS:"
-            #         "- Can you provide a summary of the game video?"
-            #         "- What are the main events shown in the video?"
-            #         "- What's the essence of the game's dynamics?"
-            #         "- Could you briefly describe the video content?",
-            #     },
-            #     {
-            #         "role": "user",
-            #         "content": f"The video caption is: {caption}."
-            #         "Please generate the response in the form of a Python JSON, where JSON strings starting with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
-            #         "Emphasize that the questions and answers can be very similar, but they should all focus on summarizing the video content."
-            #         "The response should look EXACTLY like this : {'Q1': 'Your first question here...', 'A1': 'Your first answer here...', 'Q2': 'Your second question here...', 'A2': 'Your second answer here...', 'Q3': 'Your third question here...', 'A3': 'Your third answer here...'}. ",
-
-            #     },
-            # ],
-            # [
                     {
                         "role": "system",
                         "content": 
