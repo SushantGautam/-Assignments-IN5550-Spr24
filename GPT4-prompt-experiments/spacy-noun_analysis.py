@@ -1,7 +1,7 @@
 import spacy
 
 # Load the English language model from spaCy
-nlp = spacy.load("en_core_web_sm")
+nlp = spacy.load("en_core_web_lg")
 
 import glob
 import json
