@@ -197,41 +197,33 @@ def annotate(caption_files, output_dir, args):
             # breakpoint()
         elif file.split(".")[0].split("_")[1] == "consistency":
             message = [
-                {
-                    "role": "system",
-                    "content": "You play two roles: a human asking questions related to a video and an intelligent chatbot designed to help people find information from a given short soccer game clip. "
-                    "You play two roles: a human asking creative questions related to a video and an intelligent chatbot designed to help people explore imaginative aspects of a given video. "
-                    "Your task is to generate a conversation that dives into the creative interpretations and ideas inspired by the video, rather than summarizing its content. "
-                    "As an AI assistant, assume that you have watched the video and generated the provided caption as the summary of the video. "
-                    "Your task is to first play the role of a human who asks creative questions related to a video and then play the role of an AI assistant that provides imaginative responses based on the video content."
-                    "##TASK:"
-                    "Users will provide a caption of a video, and you will generate a conversation-like creative question and answer related to the video. "
-                    "The question should be designed to explore imaginative aspects of the video, such as creating a story, poem, or alternate scenario inspired by the video. "
-                    "You have information about the video based on the provided caption."
-                    "Generate ONLY ONE creative questions and detailed answers based on the caption. "
-                    "------"
-                    "##INSTRUCTIONS:"
-                    "- The question must be like a human conversation and inspired by the events in the video. "
-                    "- The creative question should prompt for a poem, short story, alternate scenario, or other imaginative response inspired by the video content. "
-                    "- The answer must be detailed, descriptive, and imaginative, showcasing creative interpretations of the video. "
-                    "------"
-                    "##SAMPLE QUESTIONS:"
-                    "- Can you write a short poem inspired by the clip?"
-                    "- Create a short story that incorporates elements from given game clip."
-                    "- How would you turn this game clip into a fairy tale with a moral lesson?"
-                    "- Imagine the game clip as a movie scene. How would you describe its climax?"
-                    "- Can you create a haiku that captures the essence of given clip?"
-                    "- Write a short, suspenseful thriller scene inspired by this game video."
-                    "- Write a brief scene from a sci-fi or fantasy novel inspired by given clip.",
-                },
-                {
-                    "role": "user",
-                    "content": f"The video caption is: {caption}. "
-                    "Please generate the response in the form of a Python JSON dictionary string with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
-                    "For example, your response should look like this: {'Q': 'Your question here...', 'A': 'Your answer here...'}. "
-                    "Focus on generating ONLY ONE creative question and answer inspired by the video.",
-                },
-            ]
+                    {
+                        "role": "system",
+                        "content":
+                            "Your primary task is to formulate two distinct but conceptually similar questions, such that when asked about the same video-information, they correspond to the same answer. "
+                            "------"
+                            "##TASK:"
+                            "When given details about about a short soccer video clip with two visible events, your task is to generate two questions asked in different ways. The crucial aspect is to frame these questions so that they are conceptually alike but phrased differently, leading to the exact same answer. "
+                            "The questions should be cleverly designed to extract the same information directly from the video details given, so that the provided information or parts of it can serve as the answer. It's important that both questions yield the SAME answer. "
+                            "We also have access to internal commentary which can enhance the temporal event understanding only if it contains information directly related to the visible events. Other information not directly related to visible events in the commentary should be ignored. "
+                            "Don't mention about commentary in question/answer as it is not shown on video."
+                            "Be serious about privary and anonymization. Don't use real player and team names, strictly anonymize them to prevent privacy."
+                            "Always use jersey colours (eg: player form .. color team,) to refer to team/player as the names are not visible on the video."
+                            "- Generate TWO questions and ONE answer. The purpose is to extract identical information from both questions. Therefore, formulate your questions in a way that the given details can serve directly as the answer. "
+                            "------"
+                            "##SAMPLE QUESTIONS:"
+                            "- {'Q1': 'What is the colour of the team that . .. ?', 'Q2': 'Can you describe the team that ?', 'A': 'The team that. . . is a red jerseyed  ..  .'}"
+                            "- {'Q1': 'What is the player doing in the video?', 'Q2': 'Can you see the player engaged in an activity in the video?', 'A': 'The player is . . . .. in the video.'}"
+                    },
+                    {
+                        "role": "user",
+                        "content":
+                            f"The user input is: {caption}. "
+                            f"Please generate the response in the form of a Python JSON dictionary string with keys 'Q1', 'Q2', and 'A', where value of 'Q1' is  first question, 'Q2' for second question and 'A' is the answer to both questions. Each corresponding value should be the question or answer text respectively. "
+                            "For example, your response should look like this: {'Q1': 'Your first question here...', 'Q2': 'Your second question here...', 'A': 'Your answer to both questions here...'}. "
+                            "Remember, it's critical to ensure that both questions are designed to extract the same details from the video, leading to the same answer without mentioning any player name and team names as well as about the internal commentary."
+                    }
+                ]
             completion_2 = openai.ChatCompletion.create(
                 messages=message,
                 model=model_name,
@@ -240,6 +232,8 @@ def annotate(caption_files, output_dir, args):
             # Extract Creative Based QA pairs
             # Convert response to a list of dictionary.
             response_message = completion_2["choices"][0]["message"]["content"]
+            print("\nresponse_message: ", response_message)
+            # breakpoint()
         
         try:
             response_dict = ast.literal_eval(response_message.replace("\n", ""))
@@ -320,10 +314,10 @@ def main():
 
             task_args = [(part, args.output_dir, args) for part in all_parts]
             # Use a pool of workers to process the files in parallel.
-            with Pool() as pool:
-                pool.starmap(annotate, task_args)
-            # for task_arg in task_args:
-            #     annotate(*task_arg)
+            # with Pool() as pool:
+            #     pool.starmap(annotate, task_args)
+            for task_arg in task_args:
+                annotate(*task_arg)
 
         except Exception as e:
             breakpoint()
