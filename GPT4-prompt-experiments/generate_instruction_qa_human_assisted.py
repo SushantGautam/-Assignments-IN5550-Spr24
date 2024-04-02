@@ -9,6 +9,8 @@ from datetime import datetime
 import pandas as pd
 import openai
 from tqdm import tqdm
+from multiprocessing.pool import Pool
+
 
 # Suppressing all warnings
 warnings.filterwarnings("ignore")
@@ -166,40 +168,40 @@ def annotate(gt_file, caption_files, output_dir, args):
             # Generate QA pairs with OpenAI GPT-3: Caption Based
             # Answers specifically restricted to information in the caption
             message = [
-                {
-                    "role": "system",
-                    "content": "You play two roles: a human asking questions related to a video and an intelligent chatbot designed to help people find information from a given video. "
-                    "Your task is video summarization, which will be used by users to understand different events in long videos by asking different questions based on the video. "
-                    "The video summarization will be used for various applications such as surveillance, generate previews or summaries of video content for video search engines, "
-                    "create highlights or summaries of sporting events, TV shows, and movies. "
-                    "Your task is to first play the role of a human who asks questions related to a video and then play the role of an AI assistant that provides information based on the video content."
-                    "------"
-                    "##TASK:"
-                    "Users will provide some information about a video, and you will generate a set of conversation-like questions and answers related to the video. "
-                    "The questions should be designed to extract information directly from the given information, so that the provided information or parts of it can serve as the answers. "
-                    "Generate THREE different descriptive and conversational style questions and detailed answers based on the given information. "
-                    "------"
-                    "##INSTRUCTIONS:"
-                    "- The questions must be like a human conversation and based on the events in the video. "
-                    "- The questions should be designed to extract information DIRECTLY from the given information, so that it or parts of it can serve as the answers. "
-                    "- The answers must be detailed and descriptive, and they should directly reference the information provided. "
-                    "- The questions can be related to the appearance, motion, trajectory, and reasoning. "
-                    "------"
-                    "##SAMPLE QUESTIONS:"
-                    "- What is the man doing in the video?"
-                    "- What are the girls doing in the video?"
-                    "- Describe the appearance of the motorbike"
-                    "- Is the person riding the bike wearing a helmet?"
-                    "- How does the person repair the car?",
-                },
-                {
-                    "role": "user",
-                    "content": f"The video caption is: {caption}. "
-                    "Please generate the response in the form of a Python JSON list of dictionaries with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
-                    "For example, your response should look like this: [{'Q': 'Your first question here...', 'A': 'Your first answer here...'}, {'Q': 'Your second question here...', 'A': 'Your second answer here...'}, {'Q': 'Your third question here...', 'A': 'Your third answer here...'}]. "
-                    "Emphasize that the ALL THREE questions must be designed to extract information DIRECTLY from the given information, so that it or parts of it can serve as the answers, and provide detailed and descriptive answers.",
-                },
+                    {
+                        "role": "system",
+                        "content": "You play two roles: a human asking questions related to a short soccer video clip and an intelligent chatbot designed to help people understand specific events within the clip. "
+                        "Your task is to focus on soccer video summarization, which will be utilized by users to comprehend key moments in soccer matches through various questions based on the video content. "
+                        "This summarization will assist in applications like analyzing game highlights, generating summaries for sports content platforms, creating brief overviews for coaching analysis, or providing quick updates for fans. "
+                        "You will first act as a human inquiring about specific events in a soccer match and then switch roles to an AI assistant providing detailed information based on the video's content."
+                        "------"
+                        "##TASK:"
+                        "You will be given a caption of a specific events from a short soccer video clip. Based on this caption, you will generate a set of conversational-style questions and answers related to the visible events. "+ event_info+ 
+                        "The questions should be crafted to extract information DIRECTLY from the provided caption, so that it or parts of it can serve as the answers. "
+                        "Generate THREE different descriptive and conversational style questions and detailed answers based on the given information."
+                        "------"
+                        "##INSTRUCTIONS:"
+                        "- The questions must be conversational and directly related to the events in the soccer video clip. "
+                        "- The questions should be designed to extract information DIRECTLY from the given caption, so that it or parts of it can serve as the answers. "
+                        "- The answers must be detailed, descriptive, and should directly reference the information provided. "
+                        "- The questions can focus on player actions, game strategies, scoring opportunities, defensive tactics, or any key moments in the clip. "
+                        "------"
+                        "##SAMPLE QUESTIONS (based on given caption and event type):"
+                        "- How did the player score the goal in the clip?"
+                        "- What defensive strategy did the team use to prevent the goal?"
+                        "- Describe the sequence of passes that led to the goal."
+                        "- Was there an offside violation in the buildup to the goal?"
+                        "- How did the goalkeeper react to the shot?"
+                    },
+                    {
+                        "role": "user",
+                        "content": f"The video caption is: {caption}. "
+                        "Please generate the response in the form of a Python JSON, where JSON strings starting with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
+                        "The response should look EXACTLY like this : {'Q1': 'Your first question here...', 'A1': 'Your first answer here...', 'Q2': 'Your second question here...', 'A2': 'Your second answer here...', 'Q3': 'Your third question here...', 'A3': 'Your third answer here...'}. "
+                        "Emphasize that ALL THREE questions must be designed to extract information DIRECTLY from the given caption, so that it or parts of it can serve as the answers, and provide detailed and descriptive answers."
+                    }
             ]
+
 
             completion_1 = openai.ChatCompletion.create(
                 messages=message,
