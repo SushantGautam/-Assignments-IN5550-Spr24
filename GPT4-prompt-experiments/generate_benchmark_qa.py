@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 import openai
 from tqdm import tqdm
+from multiprocessing import Pool
 
 # Suppressing all warnings
 warnings.filterwarnings("ignore")
@@ -192,7 +193,8 @@ def annotate(caption_files, output_dir, args):
             # Extract Caption Based QA pairs
             # Convert response to a list of dictionary.
             response_message = completion_1["choices"][0]["message"]["content"]
-
+            # print("\nresponse_message: ", response_message)
+            # breakpoint()
         elif file.split(".")[0].split("_")[1] == "consistency":
             message = [
                 {
@@ -318,10 +320,10 @@ def main():
 
             task_args = [(part, args.output_dir, args) for part in all_parts]
             # Use a pool of workers to process the files in parallel.
-            # with Pool() as pool:
-            #     pool.starmap(annotate, task_args)
-            for task_arg in task_args:
-                annotate(*task_arg)
+            with Pool() as pool:
+                pool.starmap(annotate, task_args)
+            # for task_arg in task_args:
+            #     annotate(*task_arg)
 
         except Exception as e:
             breakpoint()
