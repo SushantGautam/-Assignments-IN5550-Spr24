@@ -46,125 +46,145 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Descriptive question-answer-generation-using-GPT-3"
     )
-    parser.add_argument("--input_type", required=True, help="e1 or e2")
     parser.add_argument(
         "--num_tasks", required=False, type=int, help="Number of splits.", default=1
     )
     parser.add_argument(
-        "--creative",
+        "--detail",
         required=False,
         type=bool,
-        help="Generate Creative Based QA pairs.",
+        help="Generate detail Based QA pairs.",
         default=False,
     )
     parser.add_argument(
-        "--summary",
+        "--temporal",
         required=False,
         type=bool,
-        help="Generate Summary Based QA pairs.",
+        help="Generate temporal Based QA pairs.",
         default=False,
     )
     parser.add_argument(
-        "--caption",
+        "--consistency",
         required=False,
         type=bool,
-        help="Generate Caption Based QA pairs.",
+        help="Generate consistency Based QA pairs.",
         default=False,
     )
 
     return parser.parse_args()
 
-import requests_cache
-e1_data = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vQMaaNO_0JU-A2gdSyJpF-WEjJGqWqZdIIp9g9gHGpTdJ3G8l6BvV1PvtmrB3nUTHxnDC_zbiAp3sJx/pub?gid=353977511&single=true&output=csv", index_col=0,)
-e2_data = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vQMaaNO_0JU-A2gdSyJpF-WEjJGqWqZdIIp9g9gHGpTdJ3G8l6BvV1PvtmrB3nUTHxnDC_zbiAp3sJx/pub?gid=957600063&single=true&output=csv", index_col=0)
+# https://docs.google.com/spreadsheets/d/1yKPA1ZyISFJZtb8NvYbpXq0JLc2aBnB20J8mi2KJOYk/edit#gid=1648738006
+e2_data = pd.read_csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSK-oe_IfipTwI_OXRugLStJr3HcmTgBQccwVmwirbzxgUO_67QKOsy7YNDdujrc7IVqRqF2fbqau9V/pub?gid=1648738006&single=true&output=csv", index_col=27, encoding='utf8')
 
 
-
-def annotate(gt_file, caption_files, output_dir, args):
+import re
+def annotate(caption_files, output_dir, args):
     """
     Generates question and answer pairs based on video captions using OpenAI GPT-3.
     """
 
     for file in tqdm(caption_files):
         key = file.split(".")[0].split("_")[0]
-        caption = gt_file[key]
+        row = e2_data.loc[int(file.split('_')[0])]
+        comments = row.comments
+        event1, event2 = row["Pair-label"].split("->")
+        event_info ="Only two events are shown: "+ event1 + " and then " + event2 + ". "
+        event_1_team, event_2_team =  row.team, row.n_team
+        match = re.search(r'(\d{4}-\d{2}-\d{2} - \d{2}-\d{2}) ([^0-9]+) (\d) - (\d) ([^/]+)/\d+', row.game)
+        home_team, away_team = match.group(2).strip(), match.group(5).strip()
+        home_color, away_color = row.home_color, row.away_color
+        colour = {'home': home_color, 'away': away_color}
+        event1_colour, event2_colour = colour.get(event_1_team, None), colour.get(event_2_team, None)
 
-        # breakpoint()
-        # find event type shown in  the video
-        if str(args.input_type) == "e1":
-            event_name = e1_data.loc[int(file.split('_')[0]), "label"]
-            event_info ="The only visible event is: "+ event_name + ". "
-        elif str(args.input_type) == "e2":
-            events_name = e2_data.loc[int(file.split('_')[0]), "Pair-label"].split("->")
-            event_info ="Only two events are shown: "+ events_name[0] + " and then " + events_name[1] + ". "
-        else:
-            print("Error: Invalid input type. Exiting...", key)
-            exit()
+
+        #event description
+        description = "Given a soccer clip with two consecutive visible events:\n 1. "+ event1 + (" by "+ event_1_team +" team in "+ event1_colour +" jersey" if event1_colour else "") + "\n 2. "+ event2 + (" by "+ event_2_team +" team in "+ event2_colour + " jersey" if event2_colour else "") + ".\n"
+        # Anonymize Real Madrid (home team) and its players as white jersey team/player and Barcelona  (away team) as blue/red stripe jersey team/player.
+        description_team = "Anonymize " + home_team + " (home team) and its players as " + home_color + " jersey team/player and " + away_team + " (away team) and its players as " + away_color + " jersey team/player."
+
+        # print(description)
+        # print(description_team)
+        caption = description + description_team  + '\n\n The Internal commentary (contain team/player names): "' + comments + '"\n'
+        # continue
+    
         
-
-        print(caption, "\n\n")
-
-        # tmp #########
-
-        # if file.split(".")[0].split("_")[1] == 'summary':
-        #     response_dict = {'summarrt_qa': 'summary_qa'}
-        # elif file.split(".")[0].split("_")[1] == 'caption':
-        #     response_dict = {'caption_qa': 'caption_qa'}
-        # elif file.split(".")[0].split("_")[1] == 'creative':
-        #     response_dict = {'creative_qa': 'creative_qa'}
-
-        # end tmp #####
-
-        # Generate QA pairs with OpenAI GPT-3: Summarization
-        if file.split(".")[0].split("_")[1] == "summary":
+        if file.split(".")[0].split("_")[1] == "detail":
             message = [
-                {
-                    "role": "system",
-                    "content": "You play two roles: a human asking questions related to summarizing a short soccer game clip and an intelligent chatbot designed for video summarization and dense captioning. "
-                    "Your task is video summarization. "
-                    "As an AI assistant, assume that you have watched the video and generated the provided caption as the summary of the video. "
-                    "Your task is to play the role of a human who asks three questions related to summarizing the video and then play the role of an AI assistant that provides paraphrased answers based on the video content and the provided caption."
-                    "------"
-                    "##TASK:"
-                    "Users will provide a caption of a video, and you will generate a set of three conversation-like questions related to summarizing the video. "+ event_info+ 
-                    "The caption can mention major events not shown in the clip. The questions and answers can be very similar, but they should all focus on summarizing the key event event shown. "
-                    "Each answers should be distinct paraphrased versions of the provided caption about the key visible events. Don't talk about viewers and fans."
-                    "You have information about the video based on the provided caption and have to summarize the visible game events in it. "
-                    "Generate THREE different diverse-type questions asking to summarize the video and provide detailed answers to each based on the caption. "
-                    "------"
-                    "##INSTRUCTIONS:"
-                    "- The questions must be like a human conversation and focused on summarizing the video. "
-                    "- The answers must be paraphrased versions of the provided caption, and they should be detailed and descriptive. "
-                    "- Refrain from mentioning the actual names of the players and teams in the answer."
-                    "------"
-                    "##SAMPLE QUESTIONS:"
-                    "- Can you provide a summary of the game video?"
-                    "- What are the main events shown in the video?"
-                    "- What's the essence of the game's dynamics?"
-                    "- Could you briefly describe the video content?",
-                },
-                {
-                    "role": "user",
-                    "content": f"The video caption is: {caption}."
-                    "Please generate the response in the form of a Python JSON, where JSON strings starting with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
-                    "Emphasize that the questions and answers can be very similar, but they should all focus on summarizing the video content."
-                    "The response should look EXACTLY like this : {'Q1': 'Your first question here...', 'A1': 'Your first answer here...', 'Q2': 'Your second question here...', 'A2': 'Your second answer here...', 'Q3': 'Your third question here...', 'A3': 'Your third answer here...'}. ",
+            #     {
+            #         "role": "system",
+            #         "content": "You play two roles: a human asking questions related to summarizing a short soccer game clip and an intelligent chatbot designed for video summarization and dense captioning. "
+            #         "Your task is video summarization. "
+            #         "As an AI assistant, assume that you have watched the video and generated the provided caption as the summary of the video. "
+            #         "Your task is to play the role of a human who asks three questions related to summarizing the video and then play the role of an AI assistant that provides paraphrased answers based on the video content and the provided caption."
+            #         "------"
+            #         "##TASK:"
+            #         "Users will provide a caption of a video, and you will generate a set of three conversation-like questions related to summarizing the video. "+ event_info+ 
+            #         "The caption can mention major events not shown in the clip. The questions and answers can be very similar, but they should all focus on summarizing the key event event shown. "
+            #         "Each answers should be distinct paraphrased versions of the provided caption about the key visible events. Don't talk about viewers and fans."
+            #         "You have information about the video based on the provided caption and have to summarize the visible game events in it. "
+            #         "Generate THREE different diverse-type questions asking to summarize the video and provide detailed answers to each based on the caption. "
+            #         "------"
+            #         "##INSTRUCTIONS:"
+            #         "- The questions must be like a human conversation and focused on summarizing the video. "
+            #         "- The answers must be paraphrased versions of the provided caption, and they should be detailed and descriptive. "
+            #         "- Refrain from mentioning the actual names of the players and teams in the answer."
+            #         "------"
+            #         "##SAMPLE QUESTIONS:"
+            #         "- Can you provide a summary of the game video?"
+            #         "- What are the main events shown in the video?"
+            #         "- What's the essence of the game's dynamics?"
+            #         "- Could you briefly describe the video content?",
+            #     },
+            #     {
+            #         "role": "user",
+            #         "content": f"The video caption is: {caption}."
+            #         "Please generate the response in the form of a Python JSON, where JSON strings starting with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
+            #         "Emphasize that the questions and answers can be very similar, but they should all focus on summarizing the video content."
+            #         "The response should look EXACTLY like this : {'Q1': 'Your first question here...', 'A1': 'Your first answer here...', 'Q2': 'Your second question here...', 'A2': 'Your second answer here...', 'Q3': 'Your third question here...', 'A3': 'Your third answer here...'}. ",
 
-                },
-            ]
+            #     },
+            # ],
+            # [
+                    {
+                        "role": "system",
+                        "content": 
+                            # "You will play two roles: a human asking questions related to describing a short socer video clip and an intelligent privacy-preserving chatbot designed for video event description and dense captioning without mentioning real team/player names. You also have access to internal commentary around the clip which is not actually shown in the clip. "
+                            # "Your task is to generate a detailed and descriptive paragraph based on the provided fragmented information about a video. You can use commentary to enhance the event understanding. Be aware that the commentary can contain additional information not shown in the clip and not related to events. Don't use real player and team names, strictly anonymize them to prevent privacy."
+                            # "------"
+                            "##TASK:"
+                            "Users will provide information about a short soccer video clip and two visible events, and you will generate ONE conversation-like question and answer related to describing game events in detail. "
+                            "The question should ask to describe the video content in detail. We also have access to internal commentary which can enhance the event understanding only if it contains information directly related to the visible events. Other information not directly related to visible events in the commentary should be ignored. "
+                            "Don't mention about commentary in question/answer as it is not shown on video."
+                            "Be serious about privary and anonymization. Don't use real player and team names, strictly anonymize them to prevent privacy."
+                            "Always use jersey colours (eg: player form .. color team,) to refer to team/player as the names are not visible on the video."
+                            "The answer should be a paraphrased and well-structured paragraph only based on the provided information, as detailed as possible. "
+                    },
+                    {
+                        "role": "user",
+                        "content":
+                            f"The user input is: {caption}. "
+                            f"Please generate the response in the form of a Python JSON dictionary string with keys 'Q' for question and 'A' for answer. Each corresponding value should be the question and answer text respectively. "
+                            "For example, your response should look like this: {'Q': 'Your question here...', 'A': 'Your answer here...'}. "
+                            f"Emphasize that the answer should focus on describing the video content as detailed as possible without mentioning any player name and team names as well as about the internal commentary."
+                    }
+                ]
+            
+            # s = json.dumps(message, indent=1,ensure_ascii=False)
+            # print(s)
+            # breakpoint()
+            # continue
             completion_0 = openai.ChatCompletion.create(
                 messages=message,
-                model="gpt-3.5-turbo-1106",
+                model=model_name,
                 response_format={"type": "json_object"},
             )
             # Extract Summary Based QA pairs
             # Convert response to a list of dictionary.
+            # breakpoint()
             response_message = completion_0["choices"][0]["message"]["content"]
             # response_message ='{"s": "test"}' #REM
 
-        elif file.split(".")[0].split("_")[1] == "caption":
-            # Generate QA pairs with OpenAI GPT-3: Caption Based
-            # Answers specifically restricted to information in the caption
+        elif file.split(".")[0].split("_")[1] == "temporal":
             message = [
                 {
                     "role": "system",
@@ -203,7 +223,7 @@ def annotate(gt_file, caption_files, output_dir, args):
 
             completion_1 = openai.ChatCompletion.create(
                 messages=message,
-                model="gpt-3.5-turbo-1106",
+                model=model_name,
                 response_format={"type": "json_object"},
             )
 
@@ -211,9 +231,7 @@ def annotate(gt_file, caption_files, output_dir, args):
             # Convert response to a list of dictionary.
             response_message = completion_1["choices"][0]["message"]["content"]
 
-        elif file.split(".")[0].split("_")[1] == "creative":
-            # Generate QA pairs with OpenAI GPT-3: Creative Based
-            # TODO: Limit to samples with lengthy GT captions
+        elif file.split(".")[0].split("_")[1] == "consistency":
             message = [
                 {
                     "role": "system",
@@ -252,7 +270,7 @@ def annotate(gt_file, caption_files, output_dir, args):
             ]
             completion_2 = openai.ChatCompletion.create(
                 messages=message,
-                model="gpt-3.5-turbo-1106",
+                model=model_name,
                 response_format={"type": "json_object"},
             )
             # Extract Creative Based QA pairs
@@ -285,49 +303,19 @@ def main():
     """
     # Parse arguments
     args = parse_args()
-
-    # Read ground truth captions file
-    # list  all files in GPT4-prompt-experiments/e1_captions_tmp
-
-    if args.input_type == "e1":
-        args.output_dir = "e1_qa"
-        args.input_dir = "e1_captions_tmp"
-    elif args.input_type == "e2":
-        args.output_dir = "e2_qa"
-        args.input_dir = "e2_captions_tmp"
-
-    gt_captions = {}
-    for file in os.listdir(args.input_dir):
-        with open(f"{args.input_dir}/{file}") as f:
-            id = file.split(".")[0]
-            gt_captions[id] = json.load(f)
-
-    print(f"len of data: {len(gt_captions)}")
-
-    # Get the video_file_names
-    video_files = list(gt_captions.keys())
-
-    caption = {}
-    for video_file in tqdm(video_files):
-        key = video_file  # Strip file extension.
-        try:
-            gt_sentences = gt_captions[key]["A"]
-        except KeyError:
-            print("Warning: GT captions not found for video file. Skipping...")
-            continue
-        caption[key] = gt_sentences
-
-    # Prepare list of caption files
+    args.output_dir = "benchmark_qa"
 
     caption_files = []
-    print(args.creative, args.summary, args.caption, args)
-    for video_id in caption.keys():
-        if args.creative:
-            caption_files.append(f"{video_id}_creative.json")
-        if args.summary:
-            caption_files.append(f"{video_id}_summary.json")
-        if args.caption:
-            caption_files.append(f"{video_id}_caption.json")
+    print(args.detail, args.temporal, args.consistency, args)
+    
+    for row in e2_data.iterrows():
+        video_id = row[0]
+        if args.detail:
+            caption_files.append(f"{video_id}_detail.json")
+        if args.temporal:
+            caption_files.append(f"{video_id}_temporal.json")
+        if args.consistency:
+            caption_files.append(f"{video_id}_consistency.json")
 
     print(f"len of output files: {len(caption_files)}")
 
@@ -365,7 +353,7 @@ def main():
                 for i in range(0, len(incomplete_files), part_len)
             ]
 
-            task_args = [(caption, part, args.output_dir, args) for part in all_parts]
+            task_args = [(part, args.output_dir, args) for part in all_parts]
             # Use a pool of workers to process the files in parallel.
             # with Pool() as pool:
             #     pool.starmap(annotate, task_args)
@@ -373,6 +361,7 @@ def main():
                 annotate(*task_arg)
 
         except Exception as e:
+            breakpoint()
             print(f"Error: {e}")
             print("Sleeping for 2 minutes...")
             time.sleep(120)  # wait for 2 minutes before trying again
@@ -382,4 +371,4 @@ if __name__ == "__main__":
     main()
 
 
-# python generate_instruction_qa_human_assisted.py --input_type e2  --summary  1 --caption 1 --creative 1
+# python generate_benchmark_qa.py --detail  1 --temporal 1 --consistency 1
