@@ -119,7 +119,7 @@ def main():
         prediction_set[id] = qa_set
 
     # Set the OpenAI API key.
-    openai.api_key = args.api_key
+    openai.api_key = json.load(open("tmp/openai.json"))["api-key"]
     num_tasks = args.num_tasks
 
     # While loop to ensure that all captions are processed.

@@ -11,7 +11,6 @@ def parse_args():
     parser.add_argument("--pred_path", required=True, help="The path to file containing prediction.")
     parser.add_argument("--output_dir", required=True, help="The path to save annotation json files.")
     parser.add_argument("--output_json", required=True, help="The path to save annotation final combined json file.")
-    parser.add_argument("--api_key", required=True, help="OpenAI API key.")
     parser.add_argument("--num_tasks", required=True, type=int, help="Number of splits.")
     args = parser.parse_args()
     return args
@@ -119,7 +118,7 @@ def main():
         prediction_set[id] = qa_set
 
     # Set the OpenAI API key.
-    openai.api_key = args.api_key
+    openai.api_key = json.load(open("tmp/openai.json"))["api-key"]
     num_tasks = args.num_tasks
 
     # While loop to ensure that all captions are processed.
